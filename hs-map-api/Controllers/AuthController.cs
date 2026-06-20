@@ -1,11 +1,10 @@
-﻿using hs_map_backend.Data;
+﻿using BCrypt.Net;
+using hs_map_api.Models.DTOs;
+using hs_map_backend.Data;
 using hs_map_backend.Models;
 using hs_map_backend.Models.DTOs;
-using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
 
 
 namespace hs_map_api.Controllers
@@ -41,7 +40,6 @@ namespace hs_map_api.Controllers
                 DisplayName = dto.DisplayName?.Trim(),
                 PreferredLanguage = string.IsNullOrWhiteSpace(dto.PreferredLanguage) ? "URDU" : dto.PreferredLanguage.ToUpper(),
                 PasswordHash = hashedPassword,
-                SecurityStamp = Guid.NewGuid().ToString()
             };
 
             _db.Users.Add(newUser);
@@ -50,7 +48,31 @@ namespace hs_map_api.Controllers
             return Ok(new
             {
                 message = "Registration successful.",
-                userId = newUser.Id
+                userId = newUser.Id,
+                email = newUser.Email,
+                displayName = newUser.DisplayName,
+                preferredLanguage = newUser.PreferredLanguage
+            });
+        }
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto dto)
+        {
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == dto.Email.ToLower());
+
+            if (user == null)
+                return BadRequest(new { message = "Invalid email or password." });
+
+            if (!BCrypt.Net.BCrypt.EnhancedVerify(dto.Password, user.PasswordHash))
+                return BadRequest(new { message = "Invalid email or password." });
+
+            return Ok(new
+            {
+                message = "Login successful.",
+                userId = user.Id,
+                email = user.Email,
+                displayName = user.DisplayName,
+                preferredLanguage = user.PreferredLanguage
             });
         }
     }
